@@ -1,0 +1,8 @@
+# Python >= 3.10 (máy chủ dự án đang dùng 3.14). Cài: python -m pip install -r requirements.txt
+osmnx>=2.0          # tải/simplify đồ thị OSM, lưu/nạp GraphML, gán tốc độ đường
+networkx>=3.2       # cấu trúc đồ thị (MultiDiGraph), Dijkstra/A* tham chiếu
+geopandas>=0.14     # ranh giới quận (GeoJSON/GADM), sjoin gán quận cho node
+shapely>=2.0        # hình học + STRtree (snap theo cạnh, ngập theo geometry)
+numpy>=1.24
+matplotlib>=3.7     # scripts/show_hanoi.py
+pytest>=7.0         # tests/

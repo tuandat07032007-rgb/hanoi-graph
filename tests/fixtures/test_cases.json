@@ -1,0 +1,222 @@
+{
+  "_meta": {
+    "version": 2,
+    "purpose": "Bộ data test cố định dùng chung cho cả nhóm. Mỗi case là một 'kịch bản' độc lập với thuật toán (cặp start-goal, phương tiện, điểm ngập, kỳ vọng); trường suggested_for mô tả case dùng để thử điều gì.",
+    "coordinates_note": "Toạ độ landmark là xấp xỉ (vài chục mét) và được snap về node gần nhất (tối đa 300 m). Nếu test district/snap fail ở lần chạy đầu thì chỉnh toạ độ landmark, không phải lỗi code.",
+    "expected_policy": "Đáp án 'biết trước' gồm: (1) bất biến đúng với mọi dữ liệu OSM (đường đi hợp lệ theo chiều, >= đường chim bay, A* == Dijkstra, phương tiện qua được ngập thì đường không đổi); (2) khoảng hợp lý ratio = độ dài đường / đường chim bay; (3) golden — độ dài tối ưu đã chốt cho từng case/xe, lưu ở tests/fixtures/golden.json, do scripts/freeze_golden.py tính bằng Dijkstra trên đồ thị thật; chạy lại script khi tải lại OSM hoặc sửa case.",
+    "flood_policy": "mode on_route: điểm ngập đặt tại node nằm trên đường nền của MỌI xe trong case, gần vị trí fraction nhất dọc theo đường của xe đầu tiên -> mọi xe gặp cùng một điểm ngập. blocked_for = đường bị đổi hoặc không còn đường; unchanged_for = độ dài đường không đổi.",
+    "ratio_bounds_note": "min_ratio/max_ratio là chặn lỏng để bắt lỗi nặng (vd. đường đi sai quận, vòng vô lý), không phải kỳ vọng chính xác."
+  },
+  "landmarks": {
+    "thap_rua": {
+      "lat": 21.0288,
+      "lng": 105.8523,
+      "name": "Tháp Rùa (Hồ Hoàn Kiếm)",
+      "district": "HoanKiem"
+    },
+    "nha_hat_lon": {
+      "lat": 21.0242,
+      "lng": 105.8577,
+      "name": "Nhà hát Lớn",
+      "district": "HoanKiem"
+    },
+    "lang_bac": {
+      "lat": 21.0368,
+      "lng": 105.8347,
+      "name": "Lăng Chủ tịch Hồ Chí Minh",
+      "district": "BaDinh"
+    },
+    "bach_khoa": {
+      "lat": 21.0050,
+      "lng": 105.8430,
+      "name": "ĐH Bách khoa Hà Nội",
+      "district": "HaiBaTrung"
+    },
+    "ben_xe_my_dinh": {
+      "lat": 21.0287,
+      "lng": 105.7784,
+      "name": "Bến xe Mỹ Đình",
+      "district": "NamTuLiem"
+    },
+    "noi_bai_t2": {
+      "lat": 21.2158,
+      "lng": 105.7958,
+      "name": "Sân bay Nội Bài - sảnh đi Ga Quốc tế (T2)",
+      "district": "SocSon"
+    },
+    "co_loa": {
+      "lat": 21.1131,
+      "lng": 105.8792,
+      "name": "Thành Cổ Loa",
+      "district": "DongAnh"
+    },
+    "thanh_co_son_tay": {
+      "lat": 21.1396,
+      "lng": 105.5042,
+      "name": "Thành cổ Sơn Tây",
+      "district": "SonTay"
+    },
+    "chua_huong": {
+      "lat": 20.6269,
+      "lng": 105.7570,
+      "name": "Chùa Hương - điểm cuối đường xe đi được gần nhất (chùa thật ở 20.6160, 105.7440, vào bằng đò/đi bộ)",
+      "district": "MyDuc"
+    },
+    "aeon_long_bien": {
+      "lat": 21.0267,
+      "lng": 105.8991,
+      "name": "Aeon Mall Long Biên",
+      "district": "LongBien"
+    }
+  },
+  "cases": [
+    {
+      "id": "case_1_short_same_district",
+      "suggested_for": "đường ngắn nội quận, xe máy — case nền (baseline) nhanh nhất",
+      "start": "thap_rua",
+      "goal": "nha_hat_lon",
+      "vehicles": [
+        "motorbike_ice"
+      ],
+      "flood": [],
+      "min_ratio": 1.0,
+      "max_ratio": 3.5,
+      "expect": {
+        "reachable": true,
+        "same_district": true
+      }
+    },
+    {
+      "id": "case_2_inner_city_cross",
+      "suggested_for": "cắt ngang nội thành Ba Đình -> Hai Bà Trưng, ô tô, không ngập",
+      "start": "lang_bac",
+      "goal": "bach_khoa",
+      "vehicles": [
+        "car_ice"
+      ],
+      "flood": [],
+      "min_ratio": 1.0,
+      "max_ratio": 2.5,
+      "expect": {
+        "reachable": true,
+        "same_district": false
+      }
+    },
+    {
+      "id": "case_3_oneway_old_quarter",
+      "suggested_for": "đường một chiều khu phố cổ: chạy cả 2 chiều, đường đi/độ dài phải khác nhau hợp lệ theo chiều",
+      "start": "nha_hat_lon",
+      "goal": "thap_rua",
+      "also_reverse": true,
+      "vehicles": [
+        "car_ice"
+      ],
+      "flood": [],
+      "min_ratio": 1.0,
+      "max_ratio": 4.0,
+      "expect": {
+        "reachable": true,
+        "same_district": true
+      }
+    },
+    {
+      "id": "case_4_flood_on_route",
+      "suggested_for": "ngập trên đường đi: xe máy và VF3 bị chặn, ô tô thường vẫn qua (độ sâu 35 cm > 20 và > 30, <= 50)",
+      "start": "ben_xe_my_dinh",
+      "goal": "thap_rua",
+      "vehicles": [
+        "motorbike_ice",
+        "vf3",
+        "car_ice"
+      ],
+      "flood": [
+        {
+          "mode": "on_route",
+          "fraction": 0.5,
+          "radius_m": 60,
+          "depth_cm": 35
+        }
+      ],
+      "min_ratio": 1.0,
+      "max_ratio": 2.5,
+      "expect": {
+        "reachable_for": {
+          "car_ice": true
+        },
+        "blocked_for": [
+          "motorbike_ice",
+          "vf3"
+        ],
+        "unchanged_for": [
+          "car_ice"
+        ]
+      }
+    },
+    {
+      "id": "case_4b_flood_boundary_30cm",
+      "suggested_for": "ngưỡng biên: ngập đúng 30 cm — VF3 (30) đi được, xe máy (20) không",
+      "start": "ben_xe_my_dinh",
+      "goal": "thap_rua",
+      "vehicles": [
+        "motorbike_ice",
+        "vf3",
+        "car_ice"
+      ],
+      "flood": [
+        {
+          "mode": "on_route",
+          "fraction": 0.5,
+          "radius_m": 60,
+          "depth_cm": 30
+        }
+      ],
+      "min_ratio": 1.0,
+      "max_ratio": 2.5,
+      "expect": {
+        "blocked_for": [
+          "motorbike_ice"
+        ],
+        "unchanged_for": [
+          "vf3",
+          "car_ice"
+        ]
+      }
+    },
+    {
+      "id": "case_5_suburb_long_subgraph",
+      "suggested_for": "nội thành -> thị xã Sơn Tây (~40 km): kiểm tra get_subgraph_near tăng tốc mà không đổi kết quả đáng kể",
+      "start": "thap_rua",
+      "goal": "thanh_co_son_tay",
+      "vehicles": [
+        "car_ice"
+      ],
+      "flood": [],
+      "subgraph": {
+        "buffer_km": 5.0,
+        "max_length_overhead": 0.02
+      },
+      "min_ratio": 1.0,
+      "max_ratio": 1.8,
+      "expect": {
+        "reachable": true,
+        "same_district": false
+      }
+    },
+    {
+      "id": "case_6_far_outer_district",
+      "suggested_for": "đường rất dài xuyên nhiều huyện ngoại thành (Hoàn Kiếm -> Mỹ Đức), VF3",
+      "start": "thap_rua",
+      "goal": "chua_huong",
+      "vehicles": [
+        "vf3"
+      ],
+      "flood": [],
+      "min_ratio": 1.0,
+      "max_ratio": 1.8,
+      "expect": {
+        "reachable": true,
+        "same_district": false
+      }
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+# Dữ liệu lớn — chia sẻ qua Drive/USB, KHÔNG đưa lên git (GitHub giới hạn 100 MB/file)
+data/*.pkl
+data/*.graphml
+data/hanoi_map*.png
+cache/
+outputs/
+
+# Python / pytest
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/

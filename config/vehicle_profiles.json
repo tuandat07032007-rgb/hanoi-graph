@@ -1,0 +1,124 @@
+{
+  "_meta": {
+    "version": 3,
+    "description": "Nguồn dữ liệu DUY NHẤT về phương tiện cho B/C/D. Sửa số ở đây, đừng hard-code trong thuật toán.",
+    "wading_depth_unit": "cm",
+    "wading_rule": "Đi được qua điểm ngập khi flood_depth_cm <= max_wading_depth_cm * safety_factor (so sánh <=, nên độ sâu đúng bằng ngưỡng vẫn đi được).",
+    "value_source_legend": {
+      "user_specified": "Con số do nhóm chốt (xe máy 20, ô tô 50, VF3 30).",
+      "assumption": "Giá trị tạm do người viết config đặt để có đủ loại xe; cần nhóm xác nhận/sửa."
+    },
+    "speed_note": "speed_cap_kph là trần tốc độ dùng khi tính travel_time và khi chọn v_max cho heuristic theo thời gian; chưa đo thực tế, chỉnh theo dữ liệu giao thông của nhóm.",
+    "forbidden_tags_note": "forbidden_tags: thẻ OSM cấm loại xe này, dạng {tên_thẻ: [giá trị cấm]}. Chỉ có tác dụng khi đồ thị được tải KÈM các thẻ đó (build_hanoi.py giữ sẵn, xem VEHICLE_TAGS trong hanoi_graph/loader.py).",
+    "oneway_tag_note": "oneway_tag: thẻ OSM một chiều riêng cho loại xe (vd. oneway:motorcycle). Giá trị 'no' trên đường một chiều -> xe được đi cả chiều ngược (thêm cạnh ngược khi lọc đồ thị theo xe); 'yes' trên đường hai chiều -> xe chỉ được đi theo chiều vẽ way. Không khai báo = theo chiều chung của đường."
+  },
+  "default_safety_factor": 1.0,
+  "vehicles": {
+    "motorbike_ice": {
+      "name_vi": "Xe máy xăng",
+      "category": "motorbike",
+      "powertrain": "ice",
+      "examples": [
+        "Honda Wave Alpha",
+        "Honda Air Blade",
+        "Yamaha Exciter"
+      ],
+      "max_wading_depth_cm": 20,
+      "value_source": "user_specified",
+      "speed_cap_kph": 50,
+      "forbidden_highway_types": [
+        "motorway",
+        "motorway_link"
+      ],
+      "forbidden_tags": {
+        "motorcycle": [
+          "no"
+        ]
+      },
+      "oneway_tag": "oneway:motorcycle",
+      "notes": "Xe máy bị cấm đi đường cao tốc; ngập quá ngưỡng dễ chết máy (hút nước qua ống hút gió/pô)."
+    },
+    "motorbike_ev": {
+      "name_vi": "Xe máy điện",
+      "category": "motorbike",
+      "powertrain": "ev",
+      "examples": [
+        "VinFast Feliz",
+        "VinFast Klara",
+        "Yadea"
+      ],
+      "max_wading_depth_cm": 20,
+      "value_source": "assumption",
+      "speed_cap_kph": 50,
+      "forbidden_highway_types": [
+        "motorway",
+        "motorway_link"
+      ],
+      "forbidden_tags": {
+        "motorcycle": [
+          "no"
+        ]
+      },
+      "oneway_tag": "oneway:motorcycle",
+      "notes": "Tạm đặt bằng xe máy xăng (thận trọng). Nếu nhóm có thông số nhà sản xuất thì sửa lại."
+    },
+    "car_ice": {
+      "name_vi": "Ô tô xăng/dầu",
+      "category": "car",
+      "powertrain": "ice",
+      "examples": [
+        "Toyota Vios",
+        "Hyundai Accent",
+        "Kia Morning"
+      ],
+      "max_wading_depth_cm": 50,
+      "value_source": "user_specified",
+      "speed_cap_kph": 60,
+      "forbidden_highway_types": [],
+      "forbidden_tags": {
+        "motorcar": [
+          "no"
+        ]
+      },
+      "notes": "Ô tô xăng/dầu: nước vào ống hút gió gây thủy kích, nên ngưỡng tính theo độ cao ống hút."
+    },
+    "car_ev": {
+      "name_vi": "Ô tô điện (cỡ thường)",
+      "category": "car",
+      "powertrain": "ev",
+      "examples": [
+        "VinFast VF 5",
+        "VinFast VF 6",
+        "VinFast VF 8"
+      ],
+      "max_wading_depth_cm": 50,
+      "value_source": "assumption",
+      "speed_cap_kph": 60,
+      "forbidden_highway_types": [],
+      "forbidden_tags": {
+        "motorcar": [
+          "no"
+        ]
+      },
+      "notes": "Tạm đặt bằng ô tô xăng. Pin/động cơ kín nhưng vẫn nên giữ ngưỡng thận trọng cho tới khi có thông số chính thức."
+    },
+    "vf3": {
+      "name_vi": "VinFast VF 3",
+      "category": "car",
+      "powertrain": "ev",
+      "examples": [
+        "VinFast VF 3"
+      ],
+      "max_wading_depth_cm": 30,
+      "value_source": "user_specified",
+      "speed_cap_kph": 60,
+      "forbidden_highway_types": [],
+      "forbidden_tags": {
+        "motorcar": [
+          "no"
+        ]
+      },
+      "notes": "Ô tô điện mini, gầm thấp hơn ô tô thường nên ngưỡng ngập thấp hơn car_ev."
+    }
+  }
+}
