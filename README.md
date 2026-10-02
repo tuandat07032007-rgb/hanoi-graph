@@ -265,8 +265,6 @@ Test cần dữ liệu thật mang marker `hanoi` và tự bỏ qua (skip) khi c
 
 ## 10. Giới hạn đã biết
 
-- **Đơn vị ngưỡng lội nước:** bảng phân công ghi "xe máy = 20 mm, ô tô = 50 mm, VF3 = 30 mm", nhưng config dùng **cm**
-  (20/50/30 cm). 20 mm (2 cm) nước gần như không cản xe máy, nên nhiều khả năng bảng ghi nhầm đơn vị. Nhóm cần xác nhận
   lại. Muốn đọc theo mm thì dùng `VehicleProfile.max_wading_depth_mm`.
 - **Ranh giới quận:** ranh giới cũ, trước đợt sáp nhập 7/2025 (lấy từ GADM). Có 45 node nằm ngoài mọi polygon hơn 300 m
   nên mang `district=None`.
