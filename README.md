@@ -264,8 +264,6 @@ Test cần dữ liệu thật mang marker `hanoi` và tự bỏ qua (skip) khi c
 ---
 
 ## 10. Giới hạn đã biết
-
-  lại. Muốn đọc theo mm thì dùng `VehicleProfile.max_wading_depth_mm`.
 - **Ranh giới quận:** ranh giới cũ, trước đợt sáp nhập 7/2025 (lấy từ GADM). Có 45 node nằm ngoài mọi polygon hơn 300 m
   nên mang `district=None`.
 - **Tốc độ:** `speed_kph` do OSMnx ước theo loại đường; trần tốc độ của xe là số đặt tạm, chưa đo thực tế.
