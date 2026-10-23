@@ -5,7 +5,7 @@ Không kiểm tra hiệu năng của 2 hàm tìm đường; tập trung vào cá
 rút nước theo thời gian, chồng lấn nguồn ngập và lọc cạnh theo phương tiện.
 
 Chạy (hiển thị bảng kết quả chi tiết ra màn hình):
-    python -m pytest tests/test_flood_routing_real.py -v -s -rs
+    python -m pytest tests/test_flood_new.py -v -s -rs
 Tự skip nếu chưa có data (fixture hanoi_graph trong conftest.py).
 """
 from __future__ import annotations
@@ -340,6 +340,92 @@ def test_5_flood_routing_performance_on_real_map(hanoi_graph):
 
     # Đảm bảo flood_at_time cực nhẹ (< 5 ms / lần gọi trên bản đồ thật)
     assert avg_fixed_us < 5000.0, f"flood_at_time quá chậm trên bản đồ thật: {avg_fixed_us:.2f} µs"
+
+
+
+
+# ---------------------------------------------------------------- 6. Xe máy đi ngược chiều ở phố ngập (Hàng Bông oneway:motorcycle=no)
+def test_6_motorcycle_contraflow_blocked_on_flooded_oneway_street(hanoi_graph):
+    """
+    Kiểm tra trên phố một chiều có thẻ `oneway:motorcycle=no` (như Phố Hàng Bông):
+    Khi tính `compute_flood_spread` trên đồ thị gốc G (chỉ có cạnh thuận u -> v),
+    hàm `blocked_edges_at_time` trên đồ thị xe máy H_moto phải chặn cả cạnh ngược chiều (v -> u).
+    """
+    G = hanoi_graph
+    moto_prof = get_profile("motorbike_ice")
+    car_prof = get_profile("car_ice")
+    H_moto = get_vehicle_graph(G, moto_prof)
+    H_car = get_vehicle_graph(G, car_prof)
+
+    # Tìm các cạnh contraflow trên Phố Hàng Bông (hoặc phố một chiều bất kỳ nếu dữ liệu thay đổi)
+    hang_bong_contraflow = [
+        (u, v, k)
+        for u, v, k, d in H_moto.edges(keys=True, data=True)
+        if d.get("contraflow") and "Hàng Bông" in str(d.get("name", ""))
+    ]
+    if not hang_bong_contraflow:
+        hang_bong_contraflow = [
+            (u, v, k)
+            for u, v, k, d in H_moto.edges(keys=True, data=True)
+            if d.get("contraflow")
+        ][:6]
+
+    assert len(hang_bong_contraflow) > 0, "Đồ thị xe máy phải có cạnh contraflow"
+
+    # Đặt tâm ngập tại đoạn đầu tiên của Phố Hàng Bông với F0 = 40.0 cm (> 20cm của xe máy, <= 50cm của ô tô xăng/dầu)
+    u_target, v_target, _ = hang_bong_contraflow[0]
+    lat_spot = (float(G.nodes[u_target]["y"]) + float(G.nodes[v_target]["y"])) * 0.5
+    lng_spot = (float(G.nodes[u_target]["x"]) + float(G.nodes[v_target]["x"])) * 0.5
+
+    src = FloodSource(lat=lat_spot, lng=lng_spot, f0=40.0, k=50.0, id="hang_bong_flood")
+    spread_cache = compute_flood_spread(G, [src], get_district_fn=get_district)
+    fmap = flood_at_time(spread_cache, t=0.0)
+
+    blocked_moto = blocked_edges_at_time(H_moto, spread_cache, t=0.0, profile=moto_prof)
+    view_moto = apply_dynamic_flood(H_moto, spread_cache, t=0.0, profile=moto_prof, as_view=True)
+    blocked_car = blocked_edges_at_time(H_car, spread_cache, t=0.0, profile=car_prof)
+
+    _print_banner("TEST 6: XỬ LÝ CẠNH NGƯỢC CHIỀU (CONTRAFLOW) XE MÁY TẠI PHỐ NGẬP HÀNG BÔNG")
+    print(f"  [+] Tổng số cạnh contraflow kiểm tra: {len(hang_bong_contraflow)} cạnh")
+    print(f"  [+] Điểm ngập: Phố Hàng Bông (F0 = {src.f0:.1f} cm, R ≈ {src.radius_m:.1f} m)")
+    print(f"  {'Cạnh ngược chiều (H_moto)':<30} | {'Độ sâu đoạn u-v':<18} | {'blocked (xe máy)':<20} | {'Trạng thái'}")
+    print("-" * 95)
+
+    n_deep = 0
+    n_deep_blocked = 0
+
+    for v_cf, u_cf, k_cf in sorted(hang_bong_contraflow):
+        # Tra độ sâu trên cạnh thuận (u_cf, v_cf) trong G
+        depth_uv = max(
+            (fmap.get((u_cf, v_cf, k_g), 0.0) for k_g in G[u_cf][v_cf]),
+            default=fmap.get((u_cf, v_cf), 0.0),
+        ) if G.has_edge(u_cf, v_cf) else 0.0
+
+        is_blocked = (v_cf, u_cf, k_cf) in blocked_moto
+        if depth_uv > moto_prof.effective_wading_cm:
+            n_deep += 1
+            if is_blocked:
+                n_deep_blocked += 1
+            status_txt = "CHẶN THÀNH CÔNG (Đúng)"
+            assert is_blocked, f"Cạnh ngược chiều {(v_cf, u_cf, k_cf)} ngập {depth_uv:.2f}cm phải bị chặn!"
+            assert not view_moto.has_edge(v_cf, u_cf, k_cf)
+        else:
+            status_txt = f"THÔNG THOÁNG (<= {moto_prof.effective_wading_cm:.0f}cm)"
+            assert not is_blocked
+            assert view_moto.has_edge(v_cf, u_cf, k_cf)
+
+        print(
+            f"  {str((v_cf, u_cf, k_cf)):<30} | {depth_uv:>13.2f} cm    | "
+            f"{str(is_blocked):<20} | {status_txt}"
+        )
+
+    print("-" * 95)
+    print(f"  [+] Số cạnh ngược chiều có độ sâu > 20 cm : {n_deep} / {len(hang_bong_contraflow)}")
+    print(f"  [+] Số cạnh ngược chiều bị chặn thành công: {n_deep_blocked} / {n_deep}")
+
+    assert n_deep > 0 and n_deep_blocked == n_deep
+    # Ô tô xăng/dầu (car_ice, ngưỡng 50 cm) không bị chặn ở mức ngập 40 cm
+    assert len(blocked_car) == 0
 
 
 if __name__ == "__main__":

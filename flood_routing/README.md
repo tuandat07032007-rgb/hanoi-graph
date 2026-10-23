@@ -1,6 +1,6 @@
 # Gói Mô Phỏng & Định Tuyến Ngập Động (`flood_routing`)
 
-Thư mục `flood_routing` là module chuyên trách mô phỏng, tính toán và định tuyến giao thông dưới ảnh hưởng của hiện tượng ngập lụt động theo không gian và thời gian thực trên mạng lưới giao thông đường bộ Hà Nội. Module được xây dựng để hoạt động tương thích hoàn toàn với nền tảng đồ thị [hanoi-graph](file:///c:/FTU_NAM2_HK1/Nhap%20Mon%20AI/Project/hanoi-graph%20-%20Clone%20Test%202/README.md).
+Thư mục `flood_routing` là module chuyên trách mô phỏng, tính toán và định tuyến giao thông dưới ảnh hưởng của hiện tượng ngập lụt động theo không gian và thời gian thực trên mạng lưới giao thông đường bộ Hà Nội. Module được xây dựng để hoạt động tương thích hoàn toàn với nền tảng đồ thị [hanoi-graph](../README.md).
 
 > **Requirements:** Đã cài đặt `hanoi-graph` trước đó.
 
@@ -12,7 +12,7 @@ Trong bài toán tìm đường thực tế tại đô thị Hà Nội vào mùa
 1. **Ngập lụt không cố định:** Mực nước biến đổi liên tục theo thời gian $t$ (nước rút dần nhờ hệ thống thoát nước).
 2. **Lan tỏa theo mạng lưới giao thông:** Nước từ tâm ngập lan ra các tuyến phố lân cận theo độ dài đường đi thực tế trên đồ thị, độ sâu giảm dần từ tâm ra rìa.
 3. **Phụ thuộc vào địa bàn hành chính:** Tốc độ tiêu thoát nước $r(\text{area})$ tại các quận/huyện là khác nhau (ví dụ: các quận nội thành cũ như Đống Đa, Hoàn Kiếm thoát chậm hơn các khu đô thị mới như Nam Từ Liêm, Cầu Giấy).
-4. **Phân hóa theo phương tiện:** Cùng một đoạn đường ngập $30\text{ cm}$, xe máy sẽ bị chặn hoàn toàn, ô tô điện cỡ nhỏ (VinFast VF3) đạt ngưỡng giới hạn, trong khi xe SUV/bán tải gầm cao vẫn có thể lưu thông an toàn.
+4. **Phân hóa theo phương tiện:** Cùng một đoạn đường ngập $30\text{ cm}$, xe máy sẽ bị chặn hoàn toàn, ô tô điện cỡ nhỏ (VinFast VF3) đạt ngưỡng giới hạn, trong khi ô tô xăng/dầu (`car_ice`, ngưỡng $50\text{ cm}$) vẫn có thể lưu thông an toàn.
 5. **Yêu cầu hiệu năng cao ($O(1)$ dynamic re-planning):** Thuật toán tìm đường động (Dynamic A* / Time-dependent routing) cần kiểm tra trạng thái đường hàng ngàn lần ở các mốc thời gian khác nhau. `flood_routing` tách biệt giai đoạn tính toán trước (pre-compute) và truy vấn thời gian thực để đạt tốc độ hàng ngàn lượt kiểm tra mỗi giây.
 
 ---
@@ -45,7 +45,7 @@ Một cạnh $e$ bị coi là **bị chặn (blocked)** đối với phương ti
 $$\text{Blocked}(e, t) \iff F(e, t) > W_{\text{vehicle}}$$
 - Xe máy xăng thông thường (`motorbike_ice`): $W = 20\text{ cm}$
 - Ô tô điện mini (`vf3`): $W = 30\text{ cm}$
-- Ô tô con gầm cao (`car_ice`): $W = 50\text{ cm}$
+- Ô tô xăng/dầu (`car_ice`): $W = 50\text{ cm}$
 
 ---
 
@@ -64,10 +64,10 @@ flood_routing/
 
 | Tệp tin | Nhiệm vụ chính | Các hàm / Lớp trọng tâm |
 | :--- | :--- | :--- |
-| [flood_config.py](file:///c:/FTU_NAM2_HK1/Nhap%20Mon%20AI/Project/hanoi-graph%20-%20Clone%20Test%202/flood_routing/flood_config.py) | - Định nghĩa kiểu `EdgeKey` hỗ trợ cả `DiGraph` và `MultiDiGraph`.<br>- Bảng tốc độ tiêu thoát nước cơ sở cho 30 đơn vị hành chính Hà Nội.<br>- Hàm chuẩn hóa tên quận/huyện không phân biệt chữ hoa/thường hoặc dấu. | `DRAINAGE_RATES`<br>`get_drain_rate_for_district()`<br>`RADIUS_K` ($50.0$)<br>`DEFAULT_DRAIN_RATE` ($0.5\text{ cm/phút}$) |
-| [flood_models.py](file:///c:/FTU_NAM2_HK1/Nhap%20Mon%20AI/Project/hanoi-graph%20-%20Clone%20Test%202/flood_routing/flood_models.py) | - Đối tượng hóa điểm ngập động `FloodSource`.<br>- Chiếu điểm ngập vào cạnh gần nhất kèm khoảng cách offset tới 2 đầu nút $u_0, v_0$.<br>- Tính toán bán kính động và độ sâu theo thời gian $t$. | `FloodSource`<br>`snap_coord_to_edge_with_offset()`<br>`snap_coord_to_edge()`<br>`FloodSource.f0_at_time()`<br>`FloodSource.radius_at_time()` |
-| [flood_engine.py](file:///c:/FTU_NAM2_HK1/Nhap%20Mon%20AI/Project/hanoi-graph%20-%20Clone%20Test%202/flood_routing/flood_engine.py) | - Động cơ thuật toán Multi-source Dijkstra lan tỏa vùng ngập.<br>- Lọc không gian kết hợp R-tree/Spatial Index (`idx.within`).<br>- Tính độ sâu ngập tại thời điểm $t$ với chi phí $O(1)$ mỗi cạnh.<br>- Tạo đồ thị view giới hạn (`nx.restricted_view`) loại trừ đường ngập. | `compute_flood_spread()`<br>`flood_at_time()`<br>`blocked_edges_at_time()`<br>`apply_dynamic_flood()`<br>`SpreadCache`, `SpreadEntry` |
-| [__init__.py](file:///c:/FTU_NAM2_HK1/Nhap%20Mon%20AI/Project/hanoi-graph%20-%20Clone%20Test%202/flood_routing/__init__.py) | - Xuất đầy đủ các hàm và lớp chuẩn ra bên ngoài giúp import thuận tiện:<br>`from flood_routing import FloodSource, compute_flood_spread, ...` | `__all__` |
+| [flood_config.py](flood_config.py) | - Định nghĩa kiểu `EdgeKey` hỗ trợ cả `DiGraph` và `MultiDiGraph`.<br>- Bảng tốc độ tiêu thoát nước cơ sở cho 30 đơn vị hành chính Hà Nội.<br>- Hàm chuẩn hóa tên quận/huyện không phân biệt chữ hoa/thường hoặc dấu. | `DRAINAGE_RATES`<br>`get_drain_rate_for_district()`<br>`RADIUS_K` ($50.0$)<br>`DEFAULT_DRAIN_RATE` ($0.5\text{ cm/phút}$) |
+| [flood_models.py](flood_models.py) | - Đối tượng hóa điểm ngập động `FloodSource`.<br>- Chiếu điểm ngập vào cạnh gần nhất kèm khoảng cách offset tới 2 đầu nút $u_0, v_0$.<br>- Tính toán bán kính động và độ sâu theo thời gian $t$. | `FloodSource`<br>`snap_coord_to_edge_with_offset()`<br>`snap_coord_to_edge()`<br>`FloodSource.f0_at_time()`<br>`FloodSource.radius_at_time()` |
+| [flood_engine.py](flood_engine.py) | - Động cơ thuật toán Multi-source Dijkstra lan tỏa vùng ngập.<br>- Lọc không gian kết hợp R-tree/Spatial Index (`idx.within`).<br>- Tính độ sâu ngập tại thời điểm $t$ với chi phí $O(1)$ mỗi cạnh.<br>- Tạo đồ thị view giới hạn (`nx.restricted_view`) loại trừ đường ngập. | `compute_flood_spread()`<br>`flood_at_time()`<br>`blocked_edges_at_time()`<br>`apply_dynamic_flood()`<br>`SpreadCache`, `SpreadEntry` |
+| [__init__.py](__init__.py) | - Xuất đầy đủ các hàm và lớp chuẩn ra bên ngoài giúp import thuận tiện:<br>`from flood_routing import FloodSource, compute_flood_spread, ...` | `__all__` |
 
 ---
 
@@ -79,21 +79,21 @@ Dưới đây là bảng tra cứu nhanh và chi tiết đặc tả từng hàm,
 
 | Tên Hàm / Lớp | Tệp mã nguồn | Công dụng chính |
 | :--- | :--- | :--- |
-| [`compute_flood_spread()`](file:///c:/FTU_NAM2_HK1/Nhap%20Mon%20AI/Project/hanoi-graph%20-%20Clone%20Test%202/flood_routing/flood_engine.py#L94-L174) | `flood_engine.py` | Chạy Multi-source Dijkstra + R-tree tiền tính toán vùng lan tỏa ngập trên toàn mạng lưới (chạy 1 lần duy nhất). |
-| [`flood_at_time()`](file:///c:/FTU_NAM2_HK1/Nhap%20Mon%20AI/Project/hanoi-graph%20-%20Clone%20Test%202/flood_routing/flood_engine.py#L177-L223) | `flood_engine.py` | Tính độ sâu ngập $F(e, t)$ của mọi cạnh tại phút thứ $t$ với chi phí $O(1)$ mỗi cạnh, xử lý chồng lấn bằng $\max()$. |
-| [`blocked_edges_at_time()`](file:///c:/FTU_NAM2_HK1/Nhap%20Mon%20AI/Project/hanoi-graph%20-%20Clone%20Test%202/flood_routing/flood_engine.py#L225-L252) | `flood_engine.py` | Lọc ra danh sách các cạnh bị chặn tại thời điểm $t$ tương ứng với khả năng lội nước của từng loại xe. |
-| [`apply_dynamic_flood()`](file:///c:/FTU_NAM2_HK1/Nhap%20Mon%20AI/Project/hanoi-graph%20-%20Clone%20Test%202/flood_routing/flood_engine.py#L254-L284) | `flood_engine.py` | Tạo đồ thị an toàn dạng `nx.restricted_view` (zero-copy) đã loại bỏ đường ngập tại thời điểm $t$ để đưa vào tìm đường. |
-| [`SpreadEntry`](file:///c:/FTU_NAM2_HK1/Nhap%20Mon%20AI/Project/hanoi-graph%20-%20Clone%20Test%202/flood_routing/flood_engine.py#L16-L30) | `flood_engine.py` | Đối tượng lưu trữ nhẹ (`__slots__`) chứa kết quả suy giảm $\alpha_0$ của một nguồn ngập trên một cạnh đường. |
-| [`FloodSource`](file:///c:/FTU_NAM2_HK1/Nhap%20Mon%20AI/Project/hanoi-graph%20-%20Clone%20Test%202/flood_routing/flood_models.py#L88-L159) | `flood_models.py` | Lớp mô hình hóa điểm ngập động: quản lý tọa độ, độ sâu ban đầu $F_0$, bán kính $R$, quận/huyện và quy luật rút nước. |
-| [`snap_coord_to_edge_with_offset()`](file:///c:/FTU_NAM2_HK1/Nhap%20Mon%20AI/Project/hanoi-graph%20-%20Clone%20Test%202/flood_routing/flood_models.py#L44-L79) | `flood_models.py` | Chiếu tọa độ điểm ngập vào cạnh gần nhất, tính chính xác khoảng cách offset tới 2 đầu nút $u_0, v_0$. |
-| [`snap_coord_to_edge()`](file:///c:/FTU_NAM2_HK1/Nhap%20Mon%20AI/Project/hanoi-graph%20-%20Clone%20Test%202/flood_routing/flood_models.py#L81-L85) | `flood_models.py` | Phiên bản rút gọn của phép chiếu tọa độ, trả về khóa định danh `EdgeKey` của cạnh gần nhất. |
-| [`get_drain_rate_for_district()`](file:///c:/FTU_NAM2_HK1/Nhap%20Mon%20AI/Project/hanoi-graph%20-%20Clone%20Test%202/flood_routing/flood_config.py#L80-L90) | `flood_config.py` | Tra cứu tốc độ rút nước $r(\text{area})$ theo tên quận/huyện (hỗ trợ tiếng Việt có dấu, không dấu, chữ hoa/thường). |
+| [`compute_flood_spread()`](flood_engine.py) | `flood_engine.py` | Chạy Multi-source Dijkstra + R-tree tiền tính toán vùng lan tỏa ngập trên toàn mạng lưới (chạy 1 lần duy nhất). |
+| [`flood_at_time()`](flood_engine.py) | `flood_engine.py` | Tính độ sâu ngập $F(e, t)$ của mọi cạnh tại phút thứ $t$ với chi phí $O(1)$ mỗi cạnh, xử lý chồng lấn bằng $\max()$. |
+| [`blocked_edges_at_time()`](flood_engine.py) | `flood_engine.py` | Lọc ra danh sách các cạnh bị chặn tại thời điểm $t$ tương ứng với khả năng lội nước của từng loại xe. |
+| [`apply_dynamic_flood()`](flood_engine.py) | `flood_engine.py` | Tạo đồ thị an toàn dạng `nx.restricted_view` (zero-copy) đã loại bỏ đường ngập tại thời điểm $t$ để đưa vào tìm đường. |
+| [`SpreadEntry`](flood_engine.py) | `flood_engine.py` | Đối tượng lưu trữ nhẹ (`__slots__`) chứa kết quả suy giảm $\alpha_0$ của một nguồn ngập trên một cạnh đường. |
+| [`FloodSource`](flood_models.py) | `flood_models.py` | Lớp mô hình hóa điểm ngập động: quản lý tọa độ, độ sâu ban đầu $F_0$, bán kính $R$, quận/huyện và quy luật rút nước. |
+| [`snap_coord_to_edge_with_offset()`](flood_models.py) | `flood_models.py` | Chiếu tọa độ điểm ngập vào cạnh gần nhất, tính chính xác khoảng cách offset tới 2 đầu nút $u_0, v_0$. |
+| [`snap_coord_to_edge()`](flood_models.py) | `flood_models.py` | Phiên bản rút gọn của phép chiếu tọa độ, trả về khóa định danh `EdgeKey` của cạnh gần nhất. |
+| [`get_drain_rate_for_district()`](flood_config.py) | `flood_config.py` | Tra cứu tốc độ rút nước $r(\text{area})$ theo tên quận/huyện (hỗ trợ tiếng Việt có dấu, không dấu, chữ hoa/thường). |
 
 ---
 
 ### 4.2. Chi tiết công dụng từng hàm & lớp
 
-#### A. Nhóm Động cơ Tính Toán Ngập Động ([flood_engine.py](file:///c:/FTU_NAM2_HK1/Nhap%20Mon%20AI/Project/hanoi-graph%20-%20Clone%20Test%202/flood_routing/flood_engine.py))
+#### A. Nhóm Động cơ Tính Toán Ngập Động ([flood_engine.py](flood_engine.py))
 
 1. **`compute_flood_spread(G, sources, R=None, get_district_fn=default_get_district, weight="length", use_endpoint_offset=True) -> SpreadCache`**
    - **Mục đích:** Là trái tim của cơ chế tối ưu hiệu năng. Hàm tính toán trước độ lan tỏa ngập từ tất cả các tâm ngập ra mạng lưới giao thông đường bộ xung quanh.
@@ -131,7 +131,7 @@ Dưới đây là bảng tra cứu nhanh và chi tiết đặc tả từng hàm,
 
 ---
 
-#### B. Nhóm Mô Hình Hóa Nguồn Ngập & Chiếu Tọa Độ ([flood_models.py](file:///c:/FTU_NAM2_HK1/Nhap%20Mon%20AI/Project/hanoi-graph%20-%20Clone%20Test%202/flood_routing/flood_models.py))
+#### B. Nhóm Mô Hình Hóa Nguồn Ngập & Chiếu Tọa Độ ([flood_models.py](flood_models.py))
 
 6. **Lớp `FloodSource(lat, lng, f0, k=50.0, id="")`**
    - **Mục đích:** Đối tượng hóa một điểm ngập thực địa với đầy đủ các thuộc tính không gian và biến thiên thời gian.
@@ -150,7 +150,7 @@ Dưới đây là bảng tra cứu nhanh và chi tiết đặc tả từng hàm,
 
 ---
 
-#### C. Nhóm Cấu Hình & Bảng Tốc Độ Tiêu Thoát Nước ([flood_config.py](file:///c:/FTU_NAM2_HK1/Nhap%20Mon%20AI/Project/hanoi-graph%20-%20Clone%20Test%202/flood_routing/flood_config.py))
+#### C. Nhóm Cấu Hình & Bảng Tốc Độ Tiêu Thoát Nước ([flood_config.py](flood_config.py))
 
 9. **`get_drain_rate_for_district(district_name: str | None) -> float`**
    - **Mục đích:** Tra cứu tốc độ rút nước định mức $r$ (cm/phút) của khu vực hành chính.
@@ -219,6 +219,8 @@ profile_bike = get_profile("motorbike_ice")
 H_bike = get_vehicle_graph(G, profile_bike)
 
 # Tạo Restricted Graph View cực nhanh (chỉ mất ~0.3ms, không tốn RAM copy)
+# Lưu ý: blocked_edges_at_time tự động chặn cả 2 chiều u <-> v trên H_bike,
+# bảo đảm an toàn tuyệt đối cho xe máy đi ngược chiều trên phố một chiều (oneway:motorcycle=no)
 H_bike_safe = apply_dynamic_flood(H_bike, spread_cache, t=20.0, profile=profile_bike)
 
 # Đưa H_bike_safe vào A* tìm đường như bình thường!
@@ -242,11 +244,11 @@ Tốc độ rút nước $r(\text{area})$ được thiết lập dựa trên đ�
 
 ## 8. Giải Thích Bộ Kiểm Thử Thực Tế: `tests/test_flood_new.py`
 
-Tệp kiểm thử [tests/test_flood_new.py](file:///c:/FTU_NAM2_HK1/Nhap%20Mon%20AI/Project/hanoi-graph%20-%20Clone%20Test%202/tests/test_flood_new.py) được xây dựng để kiểm chứng toàn diện chức năng, độ chính xác toán học và hiệu năng vận hành của gói `flood_routing` trên **đồ thị Hà Nội thật quy mô lớn** ($256.974$ nodes, $622.345$ edges).
+Tệp kiểm thử [tests/test_flood_new.py](../tests/test_flood_new.py) được xây dựng để kiểm chứng toàn diện chức năng, độ chính xác toán học và hiệu năng vận hành của gói `flood_routing` trên **đồ thị Hà Nội thật quy mô lớn** ($256.974$ nodes, $622.345$ edges).
 
-Tệp kiểm thử tập trung độc lập vào cơ chế mô phỏng ngập, không phụ thuộc vào 2 hàm tìm đường, bao gồm 5 bài test chuẩn hóa:
+Tệp kiểm thử tập trung độc lập vào cơ chế mô phỏng ngập, không phụ thuộc vào 2 hàm tìm đường, bao gồm 6 bài test chuẩn hóa:
 
-### 8.1. Chi tiết 5 bài kiểm thử (Test Cases)
+### 8.1. Chi tiết 6 bài kiểm thử (Test Cases)
 
 #### 1. `test_1_landmarks_district_and_dynamic_radius`
 - **Mục tiêu:** Kiểm tra khả năng snap điểm ngập vào đúng cạnh đường phố $e_0$, tự động nhận dạng quận/huyện qua tọa độ địa lý, gán đúng tốc độ thoát nước $r(\text{area})$ và tính chính xác bán kính động $R = k \times \sqrt{F_0}$.
@@ -271,7 +273,7 @@ Tệp kiểm thử tập trung độc lập vào cơ chế mô phỏng ngập, k
 - **Mục tiêu:** 
   - **Phần A (Chồng lấn):** Đặt 2 nguồn ngập giao thoa tại Tháp Rùa ($35\text{ cm}$) và Nhà hát Lớn ($48\text{ cm}$) với bán kính $R = 1200\text{ m}$. Đảm bảo các cạnh giao thoa lấy giá trị $\max()$, không bị cộng dồn phi lý.
   - **Phần B (Phân loại phương tiện):** Kiểm tra đối chiếu với các kịch bản chuẩn trong `test_cases.json`:
-    - `case_4_flood_on_route` ($35\text{ cm}$): Xe máy (`motorbike_ice`, $20\text{ cm}$) và VF3 (`vf3`, $30\text{ cm}$) bị chặn; Ô tô con (`car_ice`, $50\text{ cm}$) đi qua an toàn.
+    - `case_4_flood_on_route` ($35\text{ cm}$): Xe máy (`motorbike_ice`, $20\text{ cm}$) và VF3 (`vf3`, $30\text{ cm}$) bị chặn; Ô tô xăng/dầu (`car_ice`, $50\text{ cm}$) đi qua an toàn.
     - `case_4b_flood_boundary_30cm` ($30\text{ cm}$): Xe máy bị chặn; VF3 và Ô tô con lưu thông bình thường.
 
 #### 5. `test_5_flood_routing_performance_on_real_map` (Benchmark)
@@ -287,12 +289,20 @@ Tệp kiểm thử tập trung độc lập vào cơ chế mô phỏng ngập, k
 
 > **Ý nghĩa:** Thời gian kiểm tra ngập động chỉ mất từ **0.17 đến 0.38 mili-giây** mỗi lần gọi. Điều này đảm bảo thuật toán tìm đường (A\*, Dynamic Routing) có thể tái định tuyến (re-plan) liên tục trong thời gian thực mà không gây trễ hệ thống.
 
+#### 6. `test_6_motorcycle_contraflow_blocked_on_flooded_oneway_street`
+- **Mục tiêu:** Kiểm tra xử lý cạnh ngược chiều (contraflow) của xe máy tại phố một chiều (`oneway:motorcycle=no`) khi có ngập lụt.
+- **Dữ liệu kiểm tra:** Đặt điểm ngập $40\text{ cm}$ tại phố Hàng Bông (Hoàn Kiếm). Đồ thị $G$ chỉ có cạnh một chiều, nhưng đồ thị xe máy $H_{\text{moto}}$ có thêm 6 cạnh ngược chiều.
+- **Kết quả xác nhận:**
+  - $5/6$ cạnh ngược chiều có độ sâu ngập $> 20\text{ cm}$ (đoạn ngập sâu) bị chặn thành công $100\%$ trong `blocked_edges_at_time` và biến mất khỏi restricted view `H_moto_safe`.
+  - Xe máy không thể đi ngược chiều vào vùng ngập nguy hiểm.
+  - Ô tô xăng/dầu (`car_ice`, $50\text{ cm}$) không bị chặn nhầm vì $40\text{ cm} \le 50\text{ cm}$.
+
 ### 8.2. Hướng dẫn chạy bộ kiểm thử
 
 Để chạy kiểm thử kèm bảng kết quả chi tiết hiển thị trực tiếp ra màn hình:
 
 ```bash
-# Chạy toàn bộ 5 bài test trên bản đồ thật Hà Nội
+# Chạy toàn bộ 6 bài test trên bản đồ thật Hà Nội
 python -m pytest tests/test_flood_new.py -v -s -rs
 
 # Hoặc chỉ chạy riêng bài benchmark hiệu năng

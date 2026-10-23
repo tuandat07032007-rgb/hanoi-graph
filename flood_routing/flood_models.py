@@ -67,11 +67,10 @@ def snap_coord_to_edge_with_offset(
     edge_len = _edge_length_m(G, edge_key)
     along_m = max(0.0, min(edge_len, float(res.along_m)))
 
-    # `res.along_m` là khoảng cách dọc cạnh tính tới `res.node` (đầu mút gần hơn)
-    if res.node == edge_key[1]:  # Điểm ngập nằm gần đầu v hơn đầu u
+    if res.node == edge_key[1]:
         dist_to_v = along_m
         dist_to_u = max(0.0, edge_len - dist_to_v)
-    else:  # Điểm ngập nằm gần đầu u hơn đầu v
+    else:
         dist_to_u = along_m
         dist_to_v = max(0.0, edge_len - dist_to_u)
 
@@ -84,14 +83,14 @@ def snap_coord_to_edge(G: nx.Graph, lat: float, lng: float) -> EdgeKey:
     return edge_key
 
 
-@dataclass
+@dataclass(init=False)
 class FloodSource:
     """Đối tượng nguồn ngập động theo thời gian."""
     lat: float
-    lng: float = 0.0
-    f0: float = 0.0  # Độ sâu ngập ban đầu tại tâm (cm)
-    k: float = RADIUS_K
-    id: str = ""
+    lng: float
+    f0: float
+    k: float
+    id: str
     lon: float | None = field(default=None, repr=False)
 
     radius: float = field(default=0.0, init=False)
@@ -100,18 +99,57 @@ class FloodSource:
     dist_to_v0: float = field(default=0.0, init=False)
     district: str = field(default="Default", init=False)
     drain_rate: float = field(default=DRAINAGE_RATES["Default"], init=False)
+    _custom_drain_rate: bool = field(default=False, init=False, repr=False)
+    _auto_drain_rate: float = field(default=DRAINAGE_RATES["Default"], init=False, repr=False)
 
-    def __post_init__(self) -> None:
-        if self.lon is not None and self.lng == 0.0:
-            self.lng = float(self.lon)
+    def __init__(
+        self,
+        lat: float,
+        lng: float = 0.0,
+        f0: float = 0.0,
+        k: float = RADIUS_K,
+        id: str = "",
+        *,
+        lon: float | None = None,
+        depth_cm: float | None = None,
+        radius: float | None = None,
+        radius_m: float | None = None,
+        district: str = "Default",
+        drain_rate: float | None = None,
+    ) -> None:
+        self.lat = float(lat)
+        if lon is not None and lng == 0.0:
+            self.lng = float(lon)
+        else:
+            self.lng = float(lng)
         self.lon = self.lng
 
-        if not self.id:
-            self.id = f"flood_{self.lat:.5f}_{self.lng:.5f}"
+        actual_f0 = float(depth_cm) if depth_cm is not None else float(f0)
+        self.f0 = actual_f0
 
-        self.radius = self.radius_at_depth(self.f0)
-        if self.drain_rate == DRAINAGE_RATES["Default"]:
+        explicit_radius = radius if radius is not None else radius_m
+        if explicit_radius is not None:
+            r_val = max(0.0, float(explicit_radius))
+            self.k = (r_val / math.sqrt(actual_f0)) if actual_f0 > 0.0 else float(k)
+            self.radius = r_val
+        else:
+            self.k = float(k)
+            self.radius = self.radius_at_depth(self.f0)
+
+        self.id = id if id else f"flood_{self.lat:.5f}_{self.lng:.5f}"
+        self.edge_0 = None
+        self.dist_to_u0 = 0.0
+        self.dist_to_v0 = 0.0
+        self.district = district if district else "Default"
+
+        if drain_rate is not None:
+            self.drain_rate = float(drain_rate)
+            self._custom_drain_rate = True
+            self._auto_drain_rate = self.drain_rate
+        else:
             self.drain_rate = get_drain_rate_for_district(self.district)
+            self._custom_drain_rate = False
+            self._auto_drain_rate = self.drain_rate
 
     @property
     def radius_m(self) -> float:
@@ -132,13 +170,24 @@ class FloodSource:
         G: nx.Graph,
         get_district_fn: Callable[[float, float], str] = default_get_district,
     ) -> None:
-        """Gắn tọa độ vào cạnh e_0 bằng `snap_point` và lấy tốc độ rút nước từ `get_district`."""
+        """
+        Gắn tọa độ vào cạnh e_0 bằng `snap_point` và lấy tốc độ rút nước từ `get_district`.
+        Bảo toàn `drain_rate` nếu người dùng đã chủ động thiết lập giá trị tùy chỉnh trước đó.
+        """
+        user_modified_rate = self._custom_drain_rate or (self.drain_rate != self._auto_drain_rate)
+
         self.edge_0, self.dist_to_u0, self.dist_to_v0 = snap_coord_to_edge_with_offset(
             G, self.lat, self.lng
         )
         district_name = get_district_fn(self.lat, self.lng)
-        self.district = district_name if district_name else "Default"
-        self.drain_rate = get_drain_rate_for_district(self.district)
+        if district_name and (district_name != "Default" or self.district == "Default"):
+            self.district = district_name
+        elif not self.district:
+            self.district = "Default"
+
+        if not user_modified_rate:
+            self.drain_rate = get_drain_rate_for_district(self.district)
+            self._auto_drain_rate = self.drain_rate
 
     def f0_at_time(self, t: float) -> float:
         """Công thức rút nước theo thời gian: F_0(e_0, t) = max(0, F_0 - r(area) * t)."""

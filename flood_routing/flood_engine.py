@@ -5,7 +5,6 @@ import heapq
 from typing import Any
 import networkx as nx
 
-from hanoi_graph.geo import node_distance_m
 from hanoi_graph.spatial import get_edge_index
 from hanoi_graph.vehicles import VehicleProfile, get_profile
 
@@ -144,9 +143,9 @@ def compute_flood_spread(
 
         for u in candidate_nodes:
             if is_multi:
-                inc_edges = list(G.out_edges(u, keys=True)) + list(G.in_edges(u, keys=True))  # type: ignore[attr-defined]
+                inc_edges = list(G.out_edges(u, keys=True)) + list(G.in_edges(u, keys=True))
             else:
-                inc_edges = list(G.out_edges(u)) + list(G.in_edges(u))  # type: ignore[attr-defined]
+                inc_edges = list(G.out_edges(u)) + list(G.in_edges(u))
 
             for item in inc_edges:
                 edge_key: EdgeKey = item if is_multi else (item[0], item[1])
@@ -229,7 +228,11 @@ def blocked_edges_at_time(
     profile: VehicleProfile | str | float,
     shrink_radius: bool = False,
 ) -> set[EdgeKey]:
-    """Xác định các cạnh trên đồ thị phương tiện H bị chặn tại thời điểm t theo ngưỡng ngập của `profile`."""
+    """
+    Xác định các cạnh trên đồ thị phương tiện H bị chặn tại thời điểm t theo ngưỡng ngập của `profile`.
+    Chặn cả 2 chiều `u -> v` và `v -> u` trên H để bảo vệ xe máy khỏi đi vào các cạnh ngược chiều
+    (`contraflow` từ thẻ `oneway:motorcycle=no`) trên đoạn đường đang ngập sâu.
+    """
     prof_obj = _resolve_profile(profile)
     flood_map = flood_at_time(spread_cache, t=t, shrink_radius=shrink_radius)
     is_h_multi = H.is_multigraph()
@@ -239,14 +242,21 @@ def blocked_edges_at_time(
         if not _can_vehicle_pass(prof_obj, depth_cm):
             u, v = edge_key[0], edge_key[1]
             if is_h_multi:
-                if len(edge_key) == 3 and H.has_edge(u, v, edge_key[2]):  # type: ignore[misc]
+                # Chặn chiều thuận u -> v
+                if len(edge_key) == 3 and H.has_edge(u, v, edge_key[2]):
                     blocked.add((u, v, edge_key[2]))
                 elif H.has_edge(u, v):
                     for k in H[u][v]:
                         blocked.add((u, v, k))
+                # Chặn cả chiều ngược v -> u (bảo vệ xe máy contraflow)
+                if H.has_edge(v, u):
+                    for k in H[v][u]:
+                        blocked.add((v, u, k))
             else:
                 if H.has_edge(u, v):
                     blocked.add((u, v))
+                if H.has_edge(v, u):
+                    blocked.add((v, u))
 
     return blocked
 
@@ -261,8 +271,6 @@ def apply_dynamic_flood(
 ) -> nx.Graph:
     """
     Trả về đồ thị (mặc định là `nx.restricted_view` chỉ đọc) đã loại bỏ các cạnh ngập quá ngưỡng xe tại thời điểm t.
-    Nếu nhận vào `list[FloodSource]`, hàm tự động gọi `compute_flood_spread` để đảm bảo nhất quán 100%
-    mô hình suy giảm tuyến tính theo mạng lưới đường bộ.
     """
     prof_obj = _resolve_profile(profile)
 
